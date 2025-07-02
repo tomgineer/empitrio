@@ -110,7 +110,7 @@ fn ui_loop<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
             // --- File list widget ---
             let items: Vec<ListItem> = app.files.iter().map(|f| ListItem::new(f.as_str())).collect();
             let list = List::new(items)
-                .block(Block::default().title("MP3 Files").borders(Borders::ALL))
+                .block(Block::default().title("em(π)trio").borders(Borders::ALL))
                 .highlight_symbol("▶ ")
                 .highlight_style(Style::default().add_modifier(Modifier::REVERSED | Modifier::BOLD));
 

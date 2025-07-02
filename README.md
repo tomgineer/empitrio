@@ -7,6 +7,8 @@ It provides a simple user interface that lists MP3 files in the current director
 
 Inspired by the elegance of the Greek letter π = 3.1415926535 and the balance of a musical trio, Empitrio is designed for users who enjoy working in the terminal and want a focused music player without distractions.
 
+![Screenshot](screenshot.webp)
+
 ## Features
 
 - Terminal UI with a scrollable list of MP3 files
