@@ -1,5 +1,5 @@
 use std::io;
-use std::time::Duration;
+use std::time::{Instant, Duration};
 
 use crossterm::event::{self, Event as CEvent, KeyCode, KeyEventKind};
 use ratatui::{
@@ -20,10 +20,26 @@ pub fn ui_loop<B: Backend>(
     progress_tx: std::sync::mpsc::Sender<(u64, u64)>,
 ) -> io::Result<()> {
     let theme = Theme::xcad();
+    let mut song_end_instant: Option<Instant> = None;
 
     loop {
         // Update playback progress from the channel
         app.poll_progress();
+
+        // Auto-play next song when current song finishes
+        if app.total_time > 0 && app.current_time >= app.total_time {
+            if song_end_instant.is_none() {
+                // Mark the time when song ended
+                song_end_instant = Some(Instant::now());
+            } else if song_end_instant.unwrap().elapsed() > Duration::from_millis(700) {
+                // Delay passed — play next
+                app.next();
+                app.select(&progress_tx);
+                song_end_instant = None;
+            }
+        } else {
+            song_end_instant = None; // reset if song not finished
+        }
 
         terminal.draw(|f| {
             let size = f.area();
