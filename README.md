@@ -1,7 +1,7 @@
 # em(π)trio
 **Empitrio** (`emπtrio`) is a fast, minimal terminal-based MP3 player written in Rust.
 
-![Empitrio Splash](./splash.web)
+![Empitrio Splash](splash.web)
 
 It provides a simple user interface that lists MP3 files in the current directory, allows navigation with the keyboard, and plays audio using native performance.
 
