@@ -1,118 +1,142 @@
-use std::fs;
-use std::io::{self, BufReader};
-use std::path::PathBuf;
-use std::time::Duration;
+// main.rs
+// Empitrio – minimal TUI that lists MP3 files and shows the chosen filename in the status bar.
+// Dependencies (from Cargo.toml): rodio = "0.20", crossterm = "0.29", ratatui = "0.29"
 
-use rodio::{Decoder, OutputStream, Sink};
+use std::{env, fs, io, time::Duration};
+
+mod player;
+use player::play_file;
+
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{self, Event as CEvent, KeyCode, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
-    style::{Color, Style},
+    prelude::*,
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
-    Terminal,
 };
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Collect MP3 files in current directory
-    let files: Vec<PathBuf> = fs::read_dir(".")?
-        .filter_map(Result::ok)
-        .map(|e| e.path())
-        .filter(|p| p.extension().map_or(false, |ext| ext == "mp3"))
-        .collect();
+/// Application state
+struct App {
+    files: Vec<String>, // list of *.mp3 in current dir
+    selected: usize,    // currently-highlighted index
+    status: String,     // status-bar message
+}
 
-    if files.is_empty() {
-        println!("No MP3 files found.");
-        return Ok(());
+impl App {
+    /// Scan the current directory for *.mp3 files
+    fn new() -> io::Result<Self> {
+        let files = fs::read_dir(env::current_dir()?)?
+            .filter_map(|entry| entry.ok())
+            .filter(|e| {
+                e.path()
+                    .extension()
+                    .map(|ext| ext.eq_ignore_ascii_case("mp3"))
+                    .unwrap_or(false)
+            })
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+
+        Ok(Self {
+            files,
+            selected: 0,
+            status: "Use ↑/↓ or j/k • Enter to select • q to quit".into(),
+        })
     }
 
-    // Terminal setup
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+    fn next(&mut self) {
+        if !self.files.is_empty() {
+            self.selected = (self.selected + 1) % self.files.len();
+        }
+    }
 
-    let mut selected = 0usize;
-    let mut list_state = ListState::default();
-    list_state.select(Some(selected));
-
-    // Event loop
-    loop {
-        terminal.draw(|f| {
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .margin(1)
-            .constraints([Constraint::Min(1), Constraint::Length(1)].as_ref())
-            .split(f.area());
-
-            let items: Vec<ListItem> = files
-                .iter()
-                .map(|f| {
-                    let filename = f.file_name().unwrap().to_string_lossy().to_string();
-                    ListItem::new(filename)
-                })
-                .collect();
-
-            let list = List::new(items)
-                .block(Block::default().title("Empitrio").borders(Borders::ALL))
-                .highlight_style(Style::default().fg(Color::Yellow).bg(Color::Blue))
-                .highlight_symbol(">> ");
-
-            let help = Paragraph::new("↑ ↓ Navigate   ⏎ Play   q Quit")
-                .style(Style::default().fg(Color::DarkGray));
-
-            f.render_stateful_widget(list, chunks[0], &mut list_state);
-            f.render_widget(help, chunks[1]);
-        })?;
-
-        if event::poll(Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
-                match key.code {
-                    KeyCode::Down => {
-                        if selected < files.len() - 1 {
-                            selected += 1;
-                            list_state.select(Some(selected));
-                        }
-                    }
-                    KeyCode::Up => {
-                        if selected > 0 {
-                            selected -= 1;
-                            list_state.select(Some(selected));
-                        }
-                    }
-                    KeyCode::Enter => {
-                        play_file(&files[selected])?;
-                    }
-                    KeyCode::Char('q') => break,
-                    _ => {}
-                }
+    fn previous(&mut self) {
+        if !self.files.is_empty() {
+            if self.selected == 0 {
+                self.selected = self.files.len() - 1;
+            } else {
+                self.selected -= 1;
             }
         }
     }
 
-    // Restore terminal
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
-    Ok(())
+    fn select(&mut self) {
+        if self.files.is_empty() {
+            self.status = "No MP3 files found".into();
+        } else {
+            let filename = &self.files[self.selected];
+            self.status = format!("Playing: {}", filename);
+            let _ = play_file(filename);
+        }
+    }
+
 }
 
-fn play_file(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Playing: {}", path.display());
-    let (_stream, stream_handle) = OutputStream::try_default()?;
-    let sink = Sink::try_new(&stream_handle)?;
-    let file = std::fs::File::open(path)?;
-    let source = Decoder::new(BufReader::new(file))?;
-    sink.append(source);
-    sink.sleep_until_end();
+fn main() -> io::Result<()> {
+    // Set up terminal
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    // Run the UI loop; capture any runtime error
+    let result = ui_loop(&mut terminal);
+
+    // Restore terminal
+    disable_raw_mode()?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    terminal.show_cursor()?;
+
+    result // propagate potential errors
+}
+
+/// Main event/render loop
+fn ui_loop<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
+    let mut app = App::new()?;
+
+    loop {
+        // Draw the UI
+        terminal.draw(|f| {
+            let size = f.area();
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Min(2), Constraint::Length(1)].as_ref())
+                .split(size);
+
+            // --- File list widget ---
+            let items: Vec<ListItem> = app.files.iter().map(|f| ListItem::new(f.as_str())).collect();
+            let list = List::new(items)
+                .block(Block::default().title("MP3 Files").borders(Borders::ALL))
+                .highlight_symbol("▶ ")
+                .highlight_style(Style::default().add_modifier(Modifier::REVERSED | Modifier::BOLD));
+
+            let mut state = ListState::default();
+            state.select(Some(app.selected));
+            f.render_stateful_widget(list, chunks[0], &mut state);
+
+            // --- Status bar ---
+            let status = Paragraph::new(app.status.as_str());
+            f.render_widget(status, chunks[1]);
+        })?;
+
+        // Handle input (non-blocking poll)
+        if event::poll(Duration::from_millis(250))? {
+            if let CEvent::Key(key_event) = event::read()? {
+                if key_event.kind == KeyEventKind::Press {
+                    match key_event.code {
+                        KeyCode::Char('q') | KeyCode::Esc => break, // exit
+                        KeyCode::Down | KeyCode::Char('j') => app.next(),
+                        KeyCode::Up | KeyCode::Char('k') => app.previous(),
+                        KeyCode::Enter => app.select(),
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
     Ok(())
 }
