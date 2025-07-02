@@ -1,7 +1,6 @@
 # em(π)trio
-Empitrio — A Terminal MP3 Player Built with Rust
+**Empitrio** (`emπtrio`) is a fast, minimal terminal-based MP3 player written in Rust.
 
-**Empitrio** (`emπtrio`) is a fast, minimal terminal-based MP3 player written in Rust.  
 It provides a simple user interface that lists MP3 files in the current directory, allows navigation with the keyboard, and plays audio using native performance.
 
 Inspired by the elegance of the Greek letter π and the balance of a musical trio, Empitrio is designed for users who enjoy working in the terminal and want a focused music player without distractions.
