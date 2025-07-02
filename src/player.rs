@@ -1,6 +1,14 @@
-// player.rs
+// ============================================================================
+// em(π)trio MP3 Player — player.rs
 // Non-blocking MP3 playback with rodio — ensures only ONE track plays at a time.
 // Requires: once_cell = "1" in Cargo.toml
+// Author: Tom Papatolis
+// Email: tom@tpapatolis.com
+// Github: https://github.com/tomgineer/empitrio
+// ---------------------------------------------------------------------------
+// This module handles MP3 playback in a background thread, using rodio sinks
+// to play one track at a time and sending playback progress updates.
+// ============================================================================
 
 use rodio::{Decoder, OutputStream, Sink, Source};
 use std::{

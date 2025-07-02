@@ -1,3 +1,14 @@
+// ============================================================================
+// em(π)trio MP3 Player — ui.rs
+// Handles the main event and rendering loop for the terminal UI,
+// managing playback progress, user input, and screen updates.
+// Author: Tom Papatolis
+// Email: tom@tpapatolis.com
+// Github: https://github.com/tomgineer/empitrio
+// ---------------------------------------------------------------------------
+// Uses crossterm and ratatui crates to build a responsive TUI for MP3 playback.
+// ============================================================================
+
 use std::io;
 use std::time::{Instant, Duration};
 

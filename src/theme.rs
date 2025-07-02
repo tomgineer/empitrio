@@ -1,4 +1,12 @@
-// theme.rs
+// ============================================================================
+// em(π)trio MP3 Player — theme.rs
+// Author: Tom Papatolis
+// Email: tom@tpapatolis.com
+// Github: https://github.com/tomgineer/empitrio
+// ---------------------------------------------------------------------------
+// Description:
+// Defines color themes and styling used by the TUI for consistent look & feel.
+// ============================================================================
 
 use ratatui::style::Color;
 

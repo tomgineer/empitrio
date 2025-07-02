@@ -1,6 +1,15 @@
-// main.rs
-// Empitrio – minimal TUI that lists MP3 files and shows the chosen filename in the status bar.
-// Dependencies (from Cargo.toml): rodio = "0.20", crossterm = "0.29", ratatui = "0.29"
+// ============================================================================
+// em(π)trio MP3 Player — main.rs
+// Minimal TUI listing MP3 files and showing the chosen filename in the status bar.
+// Dependencies (from Cargo.toml):
+//    rodio = "0.20", crossterm = "0.29", ratatui = "0.29"
+// Author: Tom Papatolis
+// Email: tom@tpapatolis.com
+// Github: https://github.com/tomgineer/empitrio
+// ---------------------------------------------------------------------------
+// This is the main application entry point, defining the App state and
+// handling the terminal UI lifecycle and event loop.
+// ============================================================================
 
 use std::{env, fs, io};
 use std::sync::mpsc::{Receiver, Sender};
