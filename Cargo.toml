@@ -1,0 +1,9 @@
+[package]
+name = "empitrio"
+version = "0.1.0"
+edition = "2021"
+authors = ["Tom Papatolis"]
+description = "Empitrio Terminal MP3 Player"
+
+[dependencies]
+rodio = "0.20"
