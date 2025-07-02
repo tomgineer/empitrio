@@ -7,3 +7,5 @@ description = "Empitrio Terminal MP3 Player"
 
 [dependencies]
 rodio = "0.20"
+crossterm = "0.29"
+ratatui = "0.29"
