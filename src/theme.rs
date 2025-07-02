@@ -20,9 +20,6 @@ impl Theme {
             title: Color::Rgb(43, 79, 255),                  // #2B4FFF
             border: Color::Rgb(85, 85, 85),                  // #555555
             status_text: Color::Rgb(92, 120, 255),           // #5C78FF
-
-
-
         }
     }
 }
