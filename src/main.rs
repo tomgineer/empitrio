@@ -2,25 +2,25 @@
 // Empitrio – minimal TUI that lists MP3 files and shows the chosen filename in the status bar.
 // Dependencies (from Cargo.toml): rodio = "0.20", crossterm = "0.29", ratatui = "0.29"
 
-use std::{env, fs, io, time::Duration};
+use std::{env, fs, io};
 
 mod player;
 use player::play_file;
 
+mod theme;
+mod ui;
+use ui::ui_loop;
+
 use crossterm::{
-    event::{self, Event as CEvent, KeyCode, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use ratatui::{
-    backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout},
-    prelude::*,
-    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
-};
+
+use ratatui::backend::CrosstermBackend;
+use ratatui::Terminal;
 
 /// Application state
-struct App {
+pub struct App {
     files: Vec<String>, // list of *.mp3 in current dir
     selected: usize,    // currently-highlighted index
     status: String,     // status-bar message
@@ -94,49 +94,4 @@ fn main() -> io::Result<()> {
     result // propagate potential errors
 }
 
-/// Main event/render loop
-fn ui_loop<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
-    let mut app = App::new()?;
 
-    loop {
-        // Draw the UI
-        terminal.draw(|f| {
-            let size = f.area();
-            let chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([Constraint::Min(2), Constraint::Length(1)].as_ref())
-                .split(size);
-
-            // --- File list widget ---
-            let items: Vec<ListItem> = app.files.iter().map(|f| ListItem::new(f.as_str())).collect();
-            let list = List::new(items)
-                .block(Block::default().title("em(π)trio").borders(Borders::ALL))
-                .highlight_symbol("▶ ")
-                .highlight_style(Style::default().add_modifier(Modifier::REVERSED | Modifier::BOLD));
-
-            let mut state = ListState::default();
-            state.select(Some(app.selected));
-            f.render_stateful_widget(list, chunks[0], &mut state);
-
-            // --- Status bar ---
-            let status = Paragraph::new(app.status.as_str());
-            f.render_widget(status, chunks[1]);
-        })?;
-
-        // Handle input (non-blocking poll)
-        if event::poll(Duration::from_millis(250))? {
-            if let CEvent::Key(key_event) = event::read()? {
-                if key_event.kind == KeyEventKind::Press {
-                    match key_event.code {
-                        KeyCode::Char('q') | KeyCode::Esc => break, // exit
-                        KeyCode::Down | KeyCode::Char('j') => app.next(),
-                        KeyCode::Up | KeyCode::Char('k') => app.previous(),
-                        KeyCode::Enter => app.select(),
-                        _ => {}
-                    }
-                }
-            }
-        }
-    }
-    Ok(())
-}
