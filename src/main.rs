@@ -15,7 +15,7 @@ use std::{env, fs, io};
 use std::sync::mpsc::{Receiver, Sender};
 
 mod player;
-use player::play_file;
+use player::{play_file, toggle_pause, is_paused};
 
 mod theme;
 mod ui;
@@ -88,7 +88,7 @@ impl App {
             self.status = "No MP3 files found".into();
         } else {
             let filename = &self.files[self.selected];
-            self.status = format!("Playing: {}", filename);
+            self.status = format!(" Playing: {}", filename);
             let _ = play_file(filename, progress_tx.clone());
         }
     }
@@ -107,6 +107,20 @@ impl App {
                 } else {
                     0.0
                 };
+            }
+        }
+    }
+
+    pub fn pause(&mut self) {
+        toggle_pause();
+
+        if is_paused() {
+            self.status = "󰏤 PAUSED".into();
+        } else {
+            if let Some(filename) = self.files.get(self.selected) {
+                self.status = format!(" Playing: {}", filename);
+            } else {
+                self.status.clear();
             }
         }
     }

@@ -22,6 +22,7 @@ use ratatui::{
 };
 
 use crate::App;
+use crate::player;
 use crate::theme::Theme;
 
 /// Main event/render loop
@@ -38,18 +39,21 @@ pub fn ui_loop<B: Backend>(
         app.poll_progress();
 
         // Auto-play next song when current song finishes
-        if app.total_time > 0 && app.current_time >= app.total_time {
-            if song_end_instant.is_none() {
-                // Mark the time when song ended
-                song_end_instant = Some(Instant::now());
-            } else if song_end_instant.unwrap().elapsed() > Duration::from_millis(700) {
-                // Delay passed — play next
-                app.next();
-                app.select(&progress_tx);
-                song_end_instant = None;
-            }
+        if app.total_time == 0 || app.current_time < app.total_time || player::is_paused() {
+            // Reset timer if song not finished or paused
+            song_end_instant = None;
         } else {
-            song_end_instant = None; // reset if song not finished
+            match song_end_instant {
+                None => {
+                    song_end_instant = Some(Instant::now());
+                }
+                Some(start) if start.elapsed() > Duration::from_millis(700) => {
+                    app.next();
+                    app.select(&progress_tx);
+                    song_end_instant = None;
+                }
+                _ => {} // waiting for delay to pass
+            }
         }
 
         terminal.draw(|f| {
@@ -118,6 +122,7 @@ pub fn ui_loop<B: Backend>(
                 if key_event.kind == KeyEventKind::Press {
                     match key_event.code {
                         KeyCode::Char('q') | KeyCode::Esc => break,
+                        KeyCode::Char('p') | KeyCode::Char(' ') => app.pause(),
                         KeyCode::Down | KeyCode::Char('j') => app.next(),
                         KeyCode::Up | KeyCode::Char('k') => app.previous(),
                         KeyCode::Enter => app.select(&progress_tx),

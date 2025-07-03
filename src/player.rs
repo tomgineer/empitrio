@@ -26,6 +26,24 @@ use std::time::{Instant, Duration};
 // Global sink handle guarded by a mutex so we can stop the previous song
 static CURRENT_SINK: Lazy<Mutex<Option<Arc<Sink>>>> = Lazy::new(|| Mutex::new(None));
 
+/// Toggle pause/resume of the current playing sink, if any.
+pub fn toggle_pause() {
+    let sink_guard = CURRENT_SINK.lock().expect("Failed to lock CURRENT_SINK");
+    if let Some(sink) = sink_guard.as_ref() {
+        if sink.is_paused() {
+            sink.play();
+        } else {
+            sink.pause();
+        }
+    }
+}
+
+/// Return true if the current sink is paused, false otherwise.
+pub fn is_paused() -> bool {
+    let sink_guard = CURRENT_SINK.lock().expect("Failed to lock CURRENT_SINK");
+    sink_guard.as_ref().map(|s| s.is_paused()).unwrap_or(false)
+}
+
 /// Play the given MP3 file in a background thread, stopping any track already playing.
 /// Returns immediately so the caller (TUI) remains responsive.
 /// Errors are logged to stderr inside the spawned thread.
@@ -70,19 +88,33 @@ fn play_inner(path: &Path, progress_sender: Sender<(u64, u64)>) -> Result<(), St
     let sender_clone = progress_sender.clone();
 
     thread::spawn(move || {
+        let mut pause_duration = Duration::ZERO;
+        let mut last_check = Instant::now();
+
         while !arc_sink_clone.empty() {
-            let elapsed = start.elapsed().as_secs();
+            let now = Instant::now();
+
+            if arc_sink_clone.is_paused() {
+                pause_duration += now - last_check;
+            }
+            last_check = now;
+
+            // Elapsed time minus time spent paused
+            let elapsed = start.elapsed().saturating_sub(pause_duration).as_secs();
+
             let clamped_elapsed = if total_duration > 0 && elapsed > total_duration {
                 total_duration
             } else {
                 elapsed
             };
+
             let _ = sender_clone.send((clamped_elapsed, total_duration));
             thread::sleep(Duration::from_millis(500));
         }
         // Send final update when playback finishes
         let _ = sender_clone.send((total_duration, total_duration));
     });
+
 
     // Wait for playback to finish on the original Arc<Sink>
     arc_sink.sleep_until_end();
