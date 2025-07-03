@@ -121,7 +121,7 @@ pub fn ui_loop<B: Backend>(
                         .title(progress_label)
                         .borders(Borders::ALL)
                         .border_style(Style::default().fg(theme.border))
-                )  // <-- close block here
+                )
                 .gauge_style(Style::default().fg(theme.selection_background))
                 .ratio(app.perc_played as f64 / 100.0);
 

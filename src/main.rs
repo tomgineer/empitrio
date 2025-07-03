@@ -11,6 +11,7 @@
 // handling the terminal UI lifecycle and event loop.
 // ============================================================================
 
+use std::path::PathBuf;
 use std::{env, fs, io};
 use std::sync::mpsc::{Receiver, Sender};
 
@@ -32,6 +33,7 @@ use ratatui::Terminal;
 /// Application state
 pub struct App {
     files: Vec<String>,         // List of .mp3 files in the current directory
+    current_dir: PathBuf,       // track current directory
     selected: usize,            // Index of the currently highlighted/selected file in the list
     status: String,             // Message shown in the status bar (e.g., "Playing", "Paused")
     pub current_time: u64,      // Elapsed playback time of the current song, in seconds
@@ -42,38 +44,71 @@ pub struct App {
 }
 
 impl App {
-    /// Scan the current directory for *.mp3 files
-    fn new() -> io::Result<Self> {
-        let files = fs::read_dir(env::current_dir()?)?
+    /// Create new App at current directory, listing folders, mp3 files and "..."
+    pub fn new() -> io::Result<Self> {
+        let current_dir = env::current_dir()?;
+        Self::new_at_dir(current_dir)
+    }
+
+    /// Helper: Create App listing contents of a specific directory
+    pub fn new_at_dir(dir: PathBuf) -> io::Result<Self> {
+        let mut entries = Vec::new();
+
+        // Add "..." entry if we can go up
+        if dir.parent().is_some() {
+            entries.push("...".to_string());
+        }
+
+        // List folders (with trailing /) and mp3 files
+        let mut files_and_folders = fs::read_dir(&dir)?
             .filter_map(|entry| entry.ok())
-            .filter(|e| {
-                e.path()
-                    .extension()
+            .map(|entry| {
+                let path = entry.path();
+                let name = entry.file_name().to_string_lossy().into_owned();
+
+                if path.is_dir() {
+                    format!("{}/", name)
+                } else if path.extension()
                     .map(|ext| ext.eq_ignore_ascii_case("mp3"))
                     .unwrap_or(false)
+                {
+                    name
+                } else {
+                    String::new()
+                }
             })
-            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|name| !name.is_empty())
             .collect::<Vec<_>>();
 
+        // Sort: folders first (with /), then files, both alphabetically
+        files_and_folders.sort_by(|a, b| {
+            let a_is_dir = a.ends_with('/');
+            let b_is_dir = b.ends_with('/');
+            b_is_dir.cmp(&a_is_dir).then(a.to_lowercase().cmp(&b.to_lowercase()))
+        });
+
+        entries.extend(files_and_folders);
+
         Ok(Self {
-            files,
+            files: entries,
+            current_dir: dir,
             selected: 0,
-            status: "Press ENTER to play..".into(),
-            current_time: 0,        // start at zero seconds
-            total_time: 0,          // unknown total duration at start
-            perc_played: 0.0,       // no progress yet
-            songs_played: 0,        // no songs played yet
-            progress_rx: None,      // initialize receiver as None
+            status: "Press ENTER to play or open folder...".into(),
+            current_time: 0,
+            total_time: 0,
+            perc_played: 0.0,
+            songs_played: 0,
+            progress_rx: None,
         })
     }
 
-    fn next(&mut self) {
+    pub fn next(&mut self) {
         if !self.files.is_empty() {
             self.selected = (self.selected + 1) % self.files.len();
         }
     }
 
-    fn previous(&mut self) {
+    pub fn previous(&mut self) {
         if !self.files.is_empty() {
             if self.selected == 0 {
                 self.selected = self.files.len() - 1;
@@ -83,13 +118,49 @@ impl App {
         }
     }
 
-    pub fn select(&mut self, progress_tx: &Sender<(u64, u64)>) {
+    /// Open folder, go up, or play file based on selection
+    pub fn open_selected(&mut self, progress_tx: &Sender<(u64, u64)>) -> io::Result<()> {
         if self.files.is_empty() {
-            self.status = "No MP3 files found".into();
+            self.status = "No files or folders found".into();
+            return Ok(());
+        }
+
+        let selection = &self.files[self.selected];
+
+        if selection == "..." {
+            // Go up one directory if possible
+            if let Some(parent) = self.current_dir.parent() {
+                self.current_dir = parent.to_path_buf();
+                *self = App::new_at_dir(self.current_dir.clone())?;
+                self.status = format!("Moved up to {:?}", self.current_dir);
+            } else {
+                self.status = "Already at root directory".into();
+            }
+        } else if selection.ends_with('/') {
+            // Enter folder
+            let folder_name = selection.trim_end_matches('/');
+            let new_path = self.current_dir.join(folder_name);
+            if new_path.is_dir() {
+                self.current_dir = new_path;
+                *self = App::new_at_dir(self.current_dir.clone())?;
+                self.status = format!("Entered folder {:?}", self.current_dir);
+            } else {
+                self.status = format!("Folder not found: {}", folder_name);
+            }
         } else {
-            let filename = &self.files[self.selected];
-            self.status = format!("Playing: {}", filename);
-            let _ = play_file(filename, progress_tx.clone());
+            // Play file
+            let file_path = self.current_dir.join(selection);
+            self.status = format!("Playing: {}", selection);
+            let _ = play_file(file_path.to_string_lossy().as_ref(), progress_tx.clone());
+        }
+
+        Ok(())
+    }
+
+    /// Convenience: Call open_selected and update status if error
+    pub fn select(&mut self, progress_tx: &Sender<(u64, u64)>) {
+        if let Err(e) = self.open_selected(progress_tx) {
+            self.status = format!("Error: {}", e);
         }
     }
 
@@ -124,7 +195,6 @@ impl App {
             }
         }
     }
-
 }
 
 fn main() -> io::Result<()> {
