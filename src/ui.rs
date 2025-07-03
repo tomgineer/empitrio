@@ -61,11 +61,18 @@ pub fn ui_loop<B: Backend>(
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
+                    Constraint::Length(1), // TopBar
                     Constraint::Min(2),    // File list
+                    Constraint::Length(2), // Help box (new)
                     Constraint::Length(3), // Progress bar
                     Constraint::Length(1), // Status bar
                 ].as_ref())
                 .split(size);
+
+            // Top Bar
+            let top_text = Paragraph::new(" e m p i t r i o — by @tomgineer")
+                .style(Style::default().fg(theme.title));
+            f.render_widget(top_text, chunks[0]);
 
             // --- File list widget ---
             let items: Vec<ListItem> = app.files.iter().map(|f| {
@@ -76,11 +83,10 @@ pub fn ui_loop<B: Backend>(
             let list = List::new(items)
                 .block(
                     Block::default()
-                        .title("em(π)trio")
+                        .title("File List")
                         .borders(Borders::ALL)
                         .border_style(Style::default().fg(theme.border))
                         .style(Style::default())
-                        .title_style(Style::default().fg(theme.title).add_modifier(Modifier::BOLD)),
                 )
                 .highlight_symbol("▶ ")
                 .highlight_style(
@@ -92,7 +98,12 @@ pub fn ui_loop<B: Backend>(
 
             let mut state = ListState::default();
             state.select(Some(app.selected));
-            f.render_stateful_widget(list, chunks[0], &mut state);
+            f.render_stateful_widget(list, chunks[1], &mut state);
+
+            // --- Help Box ---
+            let help_text = Paragraph::new("Help: q - Quit | p/Space - Pause/Play | ↑/↓ or j/k - Navigate | Enter - Play")
+                .style(Style::default().fg(theme.text));
+            f.render_widget(help_text, chunks[2]);
 
             // --- Progress bar ---
             let progress_label = if app.total_time == 0 {
@@ -105,16 +116,21 @@ pub fn ui_loop<B: Backend>(
             };
 
             let gauge = Gauge::default()
-                .block(Block::default().title(progress_label).borders(Borders::ALL))
-                .gauge_style(Style::default().fg(theme.title))
+                .block(
+                    Block::default()
+                        .title(progress_label)
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(theme.border))
+                )  // <-- close block here
+                .gauge_style(Style::default().fg(theme.selection_background))
                 .ratio(app.perc_played as f64 / 100.0);
 
-            f.render_widget(gauge, chunks[1]);
+            f.render_widget(gauge, chunks[3]);
 
             // --- Status bar ---
             let status = Paragraph::new(app.status.as_str())
                 .style(Style::default().fg(theme.status_text));
-            f.render_widget(status, chunks[2]);
+            f.render_widget(status, chunks[4]);
         })?;
 
         if event::poll(Duration::from_millis(250))? {

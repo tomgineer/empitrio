@@ -58,7 +58,7 @@ impl App {
         Ok(Self {
             files,
             selected: 0,
-            status: "Use ↑/↓ or j/k • Enter to select • q to quit".into(),
+            status: "Press ENTER to play..".into(),
             current_time: 0,        // start at zero seconds
             total_time: 0,          // unknown total duration at start
             perc_played: 0.0,       // no progress yet
@@ -88,7 +88,7 @@ impl App {
             self.status = "No MP3 files found".into();
         } else {
             let filename = &self.files[self.selected];
-            self.status = format!(" Playing: {}", filename);
+            self.status = format!("Playing: {}", filename);
             let _ = play_file(filename, progress_tx.clone());
         }
     }
@@ -115,10 +115,10 @@ impl App {
         toggle_pause();
 
         if is_paused() {
-            self.status = "󰏤 PAUSED".into();
+            self.status = "—! PAUSED !—".into();
         } else {
             if let Some(filename) = self.files.get(self.selected) {
-                self.status = format!(" Playing: {}", filename);
+                self.status = format!("Playing: {}", filename);
             } else {
                 self.status.clear();
             }
