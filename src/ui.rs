@@ -48,11 +48,12 @@ pub fn ui_loop<B: Backend>(
                     song_end_instant = Some(Instant::now());
                 }
                 Some(start) if start.elapsed() > Duration::from_millis(700) => {
-                    app.next();
-                    app.select(&progress_tx);
+                    if app.next_mp3() {
+                        app.select(&progress_tx);
+                    }
                     song_end_instant = None;
                 }
-                _ => {} // waiting for delay to pass
+                _ => {}
             }
         }
 

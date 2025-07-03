@@ -118,6 +118,39 @@ impl App {
         }
     }
 
+    /// Advances selected to next MP3 file only, skipping folders and "...".
+    /// Returns true if advanced to a different mp3, false if no next mp3 found or only one mp3 exists.
+    pub fn next_mp3(&mut self) -> bool {
+        if self.files.is_empty() {
+            return false;
+        }
+
+        // Count how many mp3 files exist (exclude "..." and folders)
+        let mp3_count = self.files.iter()
+            .filter(|f| **f != "..." && !f.ends_with('/'))
+            .count();
+
+        // If only one mp3 file exists, don't advance
+        if mp3_count <= 1 {
+            return false;
+        }
+
+        let start_index = self.selected;
+        let mut next_index = (start_index + 1) % self.files.len();
+
+        while (self.files[next_index] == "..." || self.files[next_index].ends_with('/')) && next_index != start_index {
+            next_index = (next_index + 1) % self.files.len();
+        }
+
+        if next_index == start_index {
+            // No next mp3 found (shouldn't happen if mp3_count > 1, but safe check)
+            false
+        } else {
+            self.selected = next_index;
+            true
+        }
+    }
+
     /// Open folder, go up, or play file based on selection
     pub fn open_selected(&mut self, progress_tx: &Sender<(u64, u64)>) -> io::Result<()> {
         if self.files.is_empty() {
