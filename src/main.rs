@@ -204,13 +204,30 @@ impl App {
     pub fn poll_progress(&mut self) {
         if let Some(rx) = &self.progress_rx {
             while let Ok((elapsed, total)) = rx.try_recv() {
-                self.current_time = elapsed;
-                self.total_time = total;
-                self.perc_played = if total > 0 {
-                    (elapsed as f32 / total as f32) * 100.0
+                if total > 0 && elapsed >= total {
+                    // Reset progress when the song finishes
+                    self.current_time = 0;
+                    self.total_time = 0;
+                    self.perc_played = 0.0;
+
+                    // Update status to indicate playback finished or stopped
+                    self.status = "Playback finished".into();
                 } else {
-                    0.0
-                };
+                    self.current_time = elapsed;
+                    self.total_time = total;
+                    self.perc_played = if total > 0 {
+                        (elapsed as f32 / total as f32) * 100.0
+                    } else {
+                        0.0
+                    };
+
+                    // Keep the playing status (optional)
+                    if let Some(filename) = self.files.get(self.selected) {
+                        self.status = format!("Playing: {}", filename);
+                    } else {
+                        self.status.clear();
+                    }
+                }
             }
         }
     }

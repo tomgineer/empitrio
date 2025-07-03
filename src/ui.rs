@@ -71,7 +71,7 @@ pub fn ui_loop<B: Backend>(
                 .split(size);
 
             // Top Bar
-            let top_text = Paragraph::new(" e m p i t r i o — by @tomgineer")
+            let top_text = Paragraph::new(" e m p i t r i o — by @tomgineer {https://github.com/tomgineer/empitrio}")
                 .style(Style::default().fg(theme.title));
             f.render_widget(top_text, chunks[0]);
 
@@ -84,7 +84,8 @@ pub fn ui_loop<B: Backend>(
             let list = List::new(items)
                 .block(
                     Block::default()
-                        .title("File List")
+                        .title("┤ File List ├")
+                        .title_style(Style::default().fg(theme.block_text))
                         .borders(Borders::ALL)
                         .border_style(Style::default().fg(theme.border))
                         .style(Style::default())
@@ -109,17 +110,18 @@ pub fn ui_loop<B: Backend>(
             // --- Progress bar ---
             let progress_label = if app.total_time == 0 {
                 // Unknown duration
-                format!("Progress: --:-- / --:--")
+                format!("┤ Progress: --:-- / --:-- ├")
             } else {
                 let current_time = format!("{:02}:{:02}", app.current_time / 60, app.current_time % 60);
                 let total_time = format!("{:02}:{:02}", app.total_time / 60, app.total_time % 60);
-                format!("Progress: {} / {}", current_time, total_time)
+                format!("┤ Progress: {} / {} ├", current_time, total_time)
             };
 
             let gauge = Gauge::default()
                 .block(
                     Block::default()
                         .title(progress_label)
+                        .title_style(Style::default().fg(theme.block_text))
                         .borders(Borders::ALL)
                         .border_style(Style::default().fg(theme.border))
                 )
