@@ -164,8 +164,18 @@ impl App {
             // Go up one directory if possible
             if let Some(parent) = self.current_dir.parent() {
                 self.current_dir = parent.to_path_buf();
-                *self = App::new_at_dir(self.current_dir.clone())?;
+
+                // Only update directory listing and reset selected index
+                let new_app = App::new_at_dir(self.current_dir.clone())?;
+                self.files = new_app.files;
+                self.selected = 0;
+
                 self.status = format!("Moved up to {:?}", self.current_dir);
+
+                // Reset playback progress when changing folder
+                self.current_time = 0;
+                self.total_time = 0;
+                self.perc_played = 0.0;
             } else {
                 self.status = "Already at root directory".into();
             }
@@ -175,8 +185,18 @@ impl App {
             let new_path = self.current_dir.join(folder_name);
             if new_path.is_dir() {
                 self.current_dir = new_path;
-                *self = App::new_at_dir(self.current_dir.clone())?;
+
+                // Only update directory listing and reset selected index
+                let new_app = App::new_at_dir(self.current_dir.clone())?;
+                self.files = new_app.files;
+                self.selected = 0;
+
                 self.status = format!("Entered folder {:?}", self.current_dir);
+
+                // Reset playback progress when changing folder
+                self.current_time = 0;
+                self.total_time = 0;
+                self.perc_played = 0.0;
             } else {
                 self.status = format!("Folder not found: {}", folder_name);
             }
@@ -184,11 +204,18 @@ impl App {
             // Play file
             let file_path = self.current_dir.join(selection);
             self.status = format!("Playing: {}", selection);
+
+            // Reset progress when starting a new file
+            self.current_time = 0;
+            self.total_time = 0;
+            self.perc_played = 0.0;
+
             let _ = play_file(file_path.to_string_lossy().as_ref(), progress_tx.clone());
         }
 
         Ok(())
     }
+
 
     /// Convenience: Call open_selected and update status if error
     pub fn select(&mut self, progress_tx: &Sender<(u64, u64)>) {
