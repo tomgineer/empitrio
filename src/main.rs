@@ -172,10 +172,6 @@ impl App {
 
                 self.status = format!("Moved up to {:?}", self.current_dir);
 
-                // Reset playback progress when changing folder
-                self.current_time = 0;
-                self.total_time = 0;
-                self.perc_played = 0.0;
             } else {
                 self.status = "Already at root directory".into();
             }
@@ -193,23 +189,13 @@ impl App {
 
                 self.status = format!("Entered folder {:?}", self.current_dir);
 
-                // Reset playback progress when changing folder
-                self.current_time = 0;
-                self.total_time = 0;
-                self.perc_played = 0.0;
             } else {
                 self.status = format!("Folder not found: {}", folder_name);
             }
         } else {
             // Play file
             let file_path = self.current_dir.join(selection);
-            self.status = format!("Playing: {}", selection);
-
-            // Reset progress when starting a new file
-            self.current_time = 0;
-            self.total_time = 0;
-            self.perc_played = 0.0;
-
+            self.status = format!("  Playing: {}", selection);
             let _ = play_file(file_path.to_string_lossy().as_ref(), progress_tx.clone());
         }
 
@@ -247,13 +233,6 @@ impl App {
                     } else {
                         0.0
                     };
-
-                    // Keep the playing status (optional)
-                    if let Some(filename) = self.files.get(self.selected) {
-                        self.status = format!("Playing: {}", filename);
-                    } else {
-                        self.status.clear();
-                    }
                 }
             }
         }
@@ -263,10 +242,10 @@ impl App {
         toggle_pause();
 
         if is_paused() {
-            self.status = "—! PAUSED !—".into();
+            self.status = "  PAUSED".into();
         } else {
             if let Some(filename) = self.files.get(self.selected) {
-                self.status = format!("Playing: {}", filename);
+                self.status = format!("  Playing: {}", filename);
             } else {
                 self.status.clear();
             }
