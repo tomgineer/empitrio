@@ -29,7 +29,7 @@ impl Theme {
             selection_background: Color::Rgb(43, 79, 255),   // #2B4FFF
             title: Color::Rgb(92, 120, 255),                 // #2B4FFF
             border: Color::Rgb(150, 150, 150),               // #999999
-            block_text: Color::Rgb(94, 162, 255),               // #999999
+            block_text: Color::Rgb(255, 164, 69),            // #999999
             status_text: Color::Rgb(92, 120, 255),           // #5C78FF
             // warning_text: Color::Rgb(255, 64, 64)         // #FF4040
         }
